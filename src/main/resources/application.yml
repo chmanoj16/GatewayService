@@ -1,0 +1,67 @@
+server:
+  port: 8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8085/eureka/
+  instance:
+    instance-id: ${spring.application.name}:${instanceId:${random.value}}
+
+spring:
+  application:
+    name: gatewayService
+  cloud:
+    gateway:
+      default-filters:
+        - TokenRelay=
+      routes:
+        - id: user-status
+          uri: lb://resourceServer
+          predicates:
+            - Path=/user/**
+            - Method=GET
+
+        - id: guest
+          uri: lb://guestService
+          predicates:
+            - Path=/guest, /guest/{id}, /guest/**
+            - Method=GET
+
+        - id: airbnb
+          uri: lb://airbnbService
+          predicates:
+            - Path=/property, /property/{id}
+            - Method=GET
+
+  security:
+    oauth2:
+      client:
+        registration:
+          web-client-oidc:
+            clientId: web-client
+            clientSecret: myWebClientSecret
+            scope:
+              - openid
+              - user
+              - guest.admin
+            authorizationGrantType: authorization_code
+            redirectUri: http://127.0.0.1:8082/login/oauth2/code/web-client-oidc
+
+        provider:
+          web-client-oidc:
+            issuerUri: http://auth-server:8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - "*"
+  endpoint:
+    shutdown:
+      enabled: true
+
+logging:
+  level:
+    web: DEBUG
